@@ -49,6 +49,80 @@ export function ScheduleView({ data, warnings }: ScheduleViewProps) {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const scheduleData = data.semesters[selectedSemester];
+      if (!scheduleData) {
+        alert('Нет данных для экспорта');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/export/excel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          schedule_data: scheduleData,
+          filename: `Расписание_Семестр_${selectedSemester}.xlsx`,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(`Ошибка экспорта: ${error.error}`);
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Расписание_Семестр_${selectedSemester}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка при экспорте в Excel:', error);
+      alert('Ошибка при экспорте в Excel');
+    }
+  };
+
+  const handleExportAllSemestersExcel = async () => {
+    try {
+      for (const semester of semesters) {
+        const scheduleData = data.semesters[semester];
+        if (!scheduleData) continue;
+
+        const response = await fetch('http://localhost:8000/export/excel', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            schedule_data: scheduleData,
+            filename: `Расписание_Семестр_${semester}.xlsx`,
+          }),
+        });
+
+        if (!response.ok) continue;
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Расписание_Семестр_${semester}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        // Небольшая задержка между скачиваниями
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    } catch (error) {
+      console.error('Ошибка при экспорте всех семестров:', error);
+      alert('Ошибка при экспорте');
+    }
+  };
+
   if (!semesterData) {
     return (
       <div className="p-8 text-center text-muted-foreground">
@@ -73,10 +147,22 @@ export function ScheduleView({ data, warnings }: ScheduleViewProps) {
             </div>
           )}
         </div>
-        <Button onClick={handleExportJSON} variant="outline" className="gap-2">
-          <Download className="w-4 h-4" />
-          Экспорт JSON
-        </Button>
+        <div className="flex gap-2">
+          {semesters.length > 1 && (
+            <Button onClick={handleExportAllSemestersExcel} variant="secondary" className="gap-2">
+              <Download className="w-4 h-4" />
+              Все семестры Excel
+            </Button>
+          )}
+          <Button onClick={handleExportExcel} variant="default" className="gap-2">
+            <Download className="w-4 h-4" />
+            Экспорт Excel
+          </Button>
+          <Button onClick={handleExportJSON} variant="outline" className="gap-2">
+            <Download className="w-4 h-4" />
+            Экспорт JSON
+          </Button>
+        </div>
       </div>
 
       {/* Warnings accordion */}
